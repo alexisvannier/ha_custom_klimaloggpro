@@ -34,5 +34,26 @@
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "USB dongle",
+        "description": "USB: {usb}\nPaired: {paired}\nSerial: {serial}\nDevice ID: {device_id}\nLast contact: {last_contact}\n\nAfter changing the station batteries, hold the USB button until USB stays on the display, then restart pairing.",
+        "menu_options": {
+          "restart_pairing": "Check and restart USB pairing"
+        }
+      },
+      "restart_pairing": {
+        "title": "USB pairing",
+        "description": "USB: {usb}\nPaired: {paired}\nSerial: {serial}\nDevice ID: {device_id}\nLast contact: {last_contact}"
+      }
+    },
+    "error": {
+      "cannot_connect": "The USB dongle could not be reopened. Check that it is plugged in, then try again."
+    },
+    "abort": {
+      "pairing_restarted": "USB dongle reopened. USB: {usb}. Paired: {paired}. Serial: {serial}. Device ID: {device_id}. Last contact: {last_contact}. Hold the station USB button until USB stays on the display."
+    }
   }
 }

@@ -1,0 +1,23 @@
+{
+    "options": {
+        "step": {
+            "init": {
+                "title": "Dongle USB",
+                "description": "USB : {usb}\nAppairé : {paired}\nN° de série : {serial}\nIdentifiant : {device_id}\nDernier contact : {last_contact}\n\nAprès un changement de piles, maintenez le bouton USB de la station jusqu'à ce que « USB » reste affiché, puis relancez le pairing.",
+                "menu_options": {
+                    "restart_pairing": "Vérifier et relancer le pairing USB"
+                }
+            },
+            "restart_pairing": {
+                "title": "Pairing USB",
+                "description": "USB : {usb}\nAppairé : {paired}\nN° de série : {serial}\nIdentifiant : {device_id}\nDernier contact : {last_contact}"
+            }
+        },
+        "error": {
+            "cannot_connect": "Le dongle USB n'a pas pu être rouvert. Vérifiez qu'il est branché, puis réessayez."
+        },
+        "abort": {
+            "pairing_restarted": "Dongle USB rouvert. USB : {usb}. Appairé : {paired}. N° de série : {serial}. Identifiant : {device_id}. Dernier contact : {last_contact}. Maintenez le bouton USB de la station jusqu'à ce que « USB » reste affiché."
+        }
+    }
+}

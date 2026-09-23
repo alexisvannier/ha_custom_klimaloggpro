@@ -27,13 +27,41 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 
-def _shutdown_driver(hass: HomeAssistant):
+def _shutdown_driver_instance(kldr):
     """Release the USB interface. Safe to call more than once."""
-    kldr = hass.data.get(DOMAIN, {}).get("kldr")
-    if kldr is None or kldr._service is None:
+    service = getattr(kldr, "_service", None)
+    if service is None:
         return
     _LOGGER.info("KlimaLoggDriver will get shut down.")
-    kldr.shutDown()
+    if service.child is not None:
+        kldr.shutDown()
+        return
+    service.teardown()
+    kldr._service = None
+
+
+def _shutdown_driver(hass: HomeAssistant):
+    """Release the USB interface stored on hass. Safe to call more than once."""
+    kldr = hass.data.get(DOMAIN, {}).get("kldr")
+    if kldr is None:
+        return
+    _shutdown_driver_instance(kldr)
+
+
+async def async_restart_driver(hass: HomeAssistant):
+    """Close the USB dongle and start pairing again on the same driver."""
+    kldr = hass.data.get(DOMAIN, {}).get("kldr")
+    if kldr is None:
+        raise RuntimeError("KlimaLogg driver is not loaded")
+    await hass.async_add_executor_job(_shutdown_driver_instance, kldr)
+    try:
+        kldr._startup_task = asyncio.get_running_loop().create_task(kldr.startUp())
+        await kldr._startup_task
+        kldr.clear_wait_at_start()
+    except Exception:
+        await hass.async_add_executor_job(_shutdown_driver_instance, kldr)
+        raise
+    _LOGGER.info("USB transceiver reopened, push 'USB' on the station")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):

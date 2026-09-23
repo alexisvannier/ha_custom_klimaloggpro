@@ -34,5 +34,26 @@
             }
         }
     },
+    "options": {
+        "step": {
+            "init": {
+                "title": "USB-Dongle",
+                "description": "USB: {usb}\nGekoppelt: {paired}\nSeriennummer: {serial}\nGeräte-ID: {device_id}\nLetzter Kontakt: {last_contact}\n\nNach einem Batteriewechsel die USB-Taste der Station gedrückt halten, bis USB dauerhaft angezeigt wird, dann das Pairing neu starten.",
+                "menu_options": {
+                    "restart_pairing": "USB-Pairing prüfen und neu starten"
+                }
+            },
+            "restart_pairing": {
+                "title": "USB-Pairing",
+                "description": "USB: {usb}\nGekoppelt: {paired}\nSeriennummer: {serial}\nGeräte-ID: {device_id}\nLetzter Kontakt: {last_contact}"
+            }
+        },
+        "error": {
+            "cannot_connect": "Der USB-Dongle konnte nicht erneut geöffnet werden. Prüfen Sie den Anschluss und versuchen Sie es erneut."
+        },
+        "abort": {
+            "pairing_restarted": "USB-Dongle erneut geöffnet. USB: {usb}. Gekoppelt: {paired}. Seriennummer: {serial}. Geräte-ID: {device_id}. Letzter Kontakt: {last_contact}. USB-Taste der Station gedrückt halten, bis USB dauerhaft angezeigt wird."
+        }
+    },
     "title": "TFA KlimaLogg_pro"
 }

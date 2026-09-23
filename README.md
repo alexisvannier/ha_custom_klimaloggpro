@@ -20,7 +20,18 @@ Installation steps:
 8.    Press 3 seconds on the USB button on the main TFA station, so "USB" is constantly displayed on TFA station
 9.    finish!
 
-During step 5 i usually press the USB buttom some times (hold it a bit), until the base station is connected with the raspberry. If you use HAOS all the custom usb device right management stuff is not neccessary. Once the station is connected, you can see the live data in Home Assistant, the connection will stay permanent. 
+During step 5 i usually press the USB buttom some times (hold it a bit), until the base station is connected with the raspberry. If you use HAOS all the custom usb device right management stuff is not neccessary. Once the station is connected, you can see the live data in Home Assistant, the connection will stay permanent.
+
+## Restart USB pairing
+
+If the dongle fails to connect, for example after changing the station batteries:
+
+1. Settings → Devices & services → KlimaLogg → Configure
+2. The page shows whether the USB dongle is detected, paired, and when it last received data
+3. Hold the USB button on the station until "USB" stays on the display
+4. Choose **Check and restart USB pairing**
+
+The same driver is reopened, so existing sensors stay in place. Pairing can take a minute while the radio thread stops. 
 
 # Attention: USB Device!
 TFA KlimaLogg Pro weather station includes an USB Transceiver, which is used by this integration.
