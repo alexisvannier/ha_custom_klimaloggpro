@@ -65,10 +65,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for klimaloggpro."""
 
     VERSION = 1
-    # Not sure about connection class - Driver reads values from device like every 10 seconds
-    # Does it makes sense, to make it local push, so the read values get pushed to HA?
-    # Local poll works just fine for the moment.
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""

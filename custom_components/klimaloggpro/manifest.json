@@ -1,14 +1,14 @@
 {
   "domain": "klimaloggpro",
   "name": "klimaloggpro",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/klimaloggpro",
-  "requirements": ["kloggpro==0.0.4"],
-  "ssdp": [],
-  "zeroconf": [],
-  "homekit": {},
-  "dependencies": [],
+  "documentation": "https://github.com/alexisvannier/ha_custom_klimaloggpro",
+  "issue_tracker": "https://github.com/alexisvannier/ha_custom_klimaloggpro/issues",
+  "requirements": [
+    "kloggpro @ git+https://github.com/alexisvannier/kloggpro.git@8249d3c2af354ee4ed9bed918c52974868eb49b5"
+  ],
+  "iot_class": "local_polling",
   "codeowners": [
     "@z8i"
   ]

@@ -27,27 +27,33 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 
+def _shutdown_driver(hass: HomeAssistant):
+    """Release the USB interface. Safe to call more than once."""
+    kldr = hass.data.get(DOMAIN, {}).get("kldr")
+    if kldr is None or kldr._service is None:
+        return
+    _LOGGER.info("KlimaLoggDriver will get shut down.")
+    kldr.shutDown()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up klimaloggpro from a config entry."""
-    hass.data[DOMAIN][entry.entry_id] = entry.data # not sure, if this is needed...
-    
-    loop = asyncio.get_event_loop()
-    kldr = await loop.run_in_executor(None, kloggpro.klimalogg.KlimaLoggDriver)
+    hass.data[DOMAIN][entry.entry_id] = entry.data
 
+    # KlimaLoggDriver schedules its startup task on the running loop.
+    kldr = kloggpro.klimalogg.KlimaLoggDriver()
+    await kldr._startup_task
+    kldr.clear_wait_at_start()
     hass.data[DOMAIN]["kldr"] = kldr
-    await loop.run_in_executor(None, kldr.clear_wait_at_start) # necessary from the klimalogg-driver
     _LOGGER.info("Driver set up and started, push 'USB' Button on Logger now!")
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    def shutdown(event):
-        _LOGGER.info("Just before shutdown, KlimaLoggDriver will get shut down.")
-        hass.data[DOMAIN]["kldr"].shutDown() # releases the USB interface!
-    
-    # saw this below in the devolo_home_control integration - is it reasonable to store the listener?
-    #hass.data[DOMAIN][entry.entry_id]["listener"] = hass.bus.async_listen_once(
-    hass.bus.async_listen_once(
-        EVENT_HOMEASSISTANT_STOP, shutdown
+    async def _async_shutdown(_event):
+        await hass.async_add_executor_job(_shutdown_driver, hass)
+
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_shutdown)
     )
 
     return True
@@ -55,16 +61,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
-    hass.data[DOMAIN]["kldr"].shutDown()
+    await hass.async_add_executor_job(_shutdown_driver, hass)
     unload_ok = all(
         await asyncio.gather(
             *[
                 hass.config_entries.async_forward_entry_unload(entry, component)
                 for component in PLATFORMS
             ]
-        ),    
+        ),
     )
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop("kldr", None)
 
     return unload_ok

@@ -1,68 +1,105 @@
 """Platform for sensor integration."""
 
-import random
 import logging
 
-from homeassistant.const import (
-    PERCENTAGE,
-    STATE_UNKNOWN,
-    UnitOfTemperature
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
 )
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor import SensorStateClass
-from datetime import datetime, timedelta
-from homeassistant.helpers.entity import Entity
+from kloggpro.klimalogg import SensorLimits
+
 from .const import DOMAIN
-
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Add sensors for passed config_entry in HA."""
     data = hass.data[DOMAIN][config_entry.entry_id]
     kldr = hass.data[DOMAIN]["kldr"]
-    sensorlist_temp=[]
-    sensorlist_humid=[]
+    sensorlist_temp = []
+    sensorlist_humid = []
     for sensor in range(9):
         if data.get(f"sensor_{sensor}temp", False):
             sensorlist_temp.append(f"{sensor}")
         if data.get(f"sensor_{sensor}humid", False):
             sensorlist_humid.append(f"{sensor}")
 
-    _LOGGER.info(f"Temp. sensor {sensorlist_temp} and Humid. sensor {sensorlist_humid} to configure")
+    _LOGGER.info(
+        "Temp. sensor %s and Humid. sensor %s to configure",
+        sensorlist_temp,
+        sensorlist_humid,
+    )
     new_devices = []
     for sensor in sensorlist_temp:
         new_devices.append(TemperatureSensor(kldr, sensor))
     for sensor in sensorlist_humid:
         new_devices.append(HumiditySensor(kldr, sensor))
     if new_devices:
-        async_add_devices(new_devices)
+        async_add_entities(new_devices)
 
-class SensorBase(Entity):
-    """ Base representation of KlimaLoggPro Sensors """
-    should_poll = True
+
+class SensorBase(SensorEntity):
+    """Base representation of KlimaLoggPro sensors."""
+
+    _attr_should_poll = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, kldr, sensor):
-        """ Initialize sensor """
+        """Initialize sensor."""
         self._kldr = kldr
         self._sensornum = sensor
-    
+
     @property
     def device_info(self):
         """Return information to link this entity with the correct device."""
-        return {"identifiers": {(DOMAIN, self._kldr.get_transceiver_id())}}
+        return {
+            "identifiers": {(DOMAIN, self._kldr.get_transceiver_id())},
+            "manufacturer": "TFA",
+            "name": "KlimaLogg Pro",
+        }
 
     @property
     def available(self) -> bool:
-        """Return True if roller and hub is available."""
-        return self._kldr.transceiver_is_present()
+        """Return True if the USB transceiver is open."""
+        return (
+            self._kldr._service is not None
+            and self._kldr.transceiver_is_present()
+        )
+
+    def _current_values(self):
+        if self._kldr._service is None:
+            return {}
+        return self._kldr._service.current.values
+
+    def _battery_status(self):
+        alarm = self._current_values().get("AlarmData")
+        if not alarm:
+            return None
+        if self._sensornum == "0":
+            low = alarm[1] & 0x80
+        else:
+            low = alarm[0] & (1 << (int(self._sensornum) - 1))
+        return "Low" if low else "OK"
+
+    def _sensor_name(self):
+        if self._sensornum == "0":
+            return "Indoor"
+        text = self._kldr._service.station_config.values.get(
+            f"SensorText{self._sensornum}", ""
+        )
+        return text.capitalize() or f"Channel {self._sensornum}"
 
 
 class TemperatureSensor(SensorBase):
-    """ Temperatursensor """
-    device_class = SensorDeviceClass.TEMPERATURE
-    state_class = SensorStateClass.MEASUREMENT
+    """Temperature sensor."""
+
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_suggested_display_precision = 1
 
     @property
     def unique_id(self):
@@ -72,73 +109,44 @@ class TemperatureSensor(SensorBase):
     @property
     def extra_state_attributes(self):
         """Return the state attributes of the device."""
+        values = self._current_values()
+        number = self._sensornum
         attr = {}
-        try:
-            attr["max_temp"] = f"{self._kldr._service.current.values[f'Temp{self._sensornum}Max']:.1f}"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: max_temp")
-        try:
-            attr["min_temp"] = f"{self._kldr._service.current.values[f'Temp{self._sensornum}Min']:.1f}"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: min_temp")
-        try:
-            attr["max_temp_dt"] = self._kldr._service.current.values[f'Temp{self._sensornum}MaxDT']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: max_temp_dt")
-        try:
-            attr["min_temp_dt"] = self._kldr._service.current.values[f'Temp{self._sensornum}MinDT']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: min_temp_dt")
-        try:
-            attr["signal_strength"] = self._kldr._service.current.values['SignalQuality']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: signal_strength")
-        try:
-            attr["state_class"] = SensorStateClass.MEASUREMENT
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: state_class")
-        try:
-            if self._sensornum=="0":
-                attr["battery_status"] = "OK" if self._kldr._service.current.values['AlarmData'][1] & 0x80 == 0 else "Low" 
-            else:
-                bitmask = 1 << (int(self._sensornum) -1)
-                attr["battery_status"] = "OK" if self._kldr._service.current.values['AlarmData'][0] & bitmask == 0 else "Low"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: battery_status")
+        if f"Temp{number}Max" in values:
+            attr["max_temp"] = values[f"Temp{number}Max"]
+        if f"Temp{number}Min" in values:
+            attr["min_temp"] = values[f"Temp{number}Min"]
+        if f"Temp{number}MaxDT" in values:
+            attr["max_temp_dt"] = values[f"Temp{number}MaxDT"]
+        if f"Temp{number}MinDT" in values:
+            attr["min_temp_dt"] = values[f"Temp{number}MinDT"]
+        if "SignalQuality" in values:
+            attr["signal_strength"] = values["SignalQuality"]
+        battery = self._battery_status()
+        if battery is not None:
+            attr["battery_status"] = battery
         return attr
 
     @property
-    def state(self):
-        """Return the state of the sensor."""
-        value = self._kldr._service.current.values[f"Temp{self._sensornum}"]
-        if value == 81.1: # if no value was read, the stored value by the driver is 81.1, some offset...
-            return STATE_UNKNOWN
-            
-        # had some trouble with floats being 20.0000009, that fixed it somehow
-        # by returning a string, it is not displayed in HA UI, but maybe not good code either...
-        return f"{value:.1f}"
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return UnitOfTemperature.CELSIUS
+    def native_value(self):
+        """Return the temperature in °C, or None when the sensor is absent."""
+        value = self._current_values().get(f"Temp{self._sensornum}")
+        if value in (None, SensorLimits.temperature_NP, SensorLimits.temperature_OFL):
+            return None
+        return value
 
     @property
     def name(self):
         """Return the name of the sensor."""
-        if not(self._sensornum == "0"): # Sensor 0 has no name in the driver - it's the sensor in the station itself
-            sensorname = self._kldr._service.station_config.values[f"SensorText{self._sensornum}"]
-            sensorname = sensorname.capitalize()
-        else:
-            sensorname = "Indoor"
-        return f"{sensorname} Temperature {self._sensornum}"
-
+        return f"{self._sensor_name()} Temperature {self._sensornum}"
 
 
 class HumiditySensor(SensorBase):
-    """ Humiditysensor """
-    device_class = SensorDeviceClass.HUMIDITY
-    state_class = SensorStateClass.MEASUREMENT
+    """Humidity sensor."""
+
+    _attr_device_class = SensorDeviceClass.HUMIDITY
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 0
 
     @property
     def unique_id(self):
@@ -148,61 +156,33 @@ class HumiditySensor(SensorBase):
     @property
     def extra_state_attributes(self):
         """Return the state attributes of the device."""
+        values = self._current_values()
+        number = self._sensornum
         attr = {}
-        try:
-            attr["max_humidity"] = f"{self._kldr._service.current.values[f'Humidity{self._sensornum}Max']:.1f}"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: max_humidity")
-        try:
-            attr["min_humidity"] = f"{self._kldr._service.current.values[f'Humidity{self._sensornum}Min']:.1f}"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: min_humidity")
-        try:
-            attr["max_humidity_dt"] = self._kldr._service.current.values[f'Humidity{self._sensornum}MaxDT']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: max_humidity_dt")
-        try:
-            attr["min_humidity_dt"] = self._kldr._service.current.values[f'Humidity{self._sensornum}MinDT']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: min_humidity_dt")
-        try:
-            attr["signal_strength"] = self._kldr._service.current.values['SignalQuality']
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: signal_strength")
-        try:
-            attr["state_class"] = SensorStateClass.MEASUREMENT
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: state_class")
-        try:
-            if self._sensornum=="0":
-                attr["battery_status"] = "OK" if self._kldr._service.current.values['AlarmData'][1] & 0x80 == 0 else "Low" 
-            else:
-                bitmask = 1 << (int(self._sensornum) -1)
-                attr["battery_status"] = "OK" if self._kldr._service.current.values['AlarmData'][0] & bitmask == 0 else "Low"
-        except Exception as err:
-            _LOGGER.error(f"Error {err} setting attr: battery_status")
-                
+        if f"Humidity{number}Max" in values:
+            attr["max_humidity"] = values[f"Humidity{number}Max"]
+        if f"Humidity{number}Min" in values:
+            attr["min_humidity"] = values[f"Humidity{number}Min"]
+        if f"Humidity{number}MaxDT" in values:
+            attr["max_humidity_dt"] = values[f"Humidity{number}MaxDT"]
+        if f"Humidity{number}MinDT" in values:
+            attr["min_humidity_dt"] = values[f"Humidity{number}MinDT"]
+        if "SignalQuality" in values:
+            attr["signal_strength"] = values["SignalQuality"]
+        battery = self._battery_status()
+        if battery is not None:
+            attr["battery_status"] = battery
         return attr
 
     @property
-    def state(self):
-        """Return the state of the sensor."""
-        value = self._kldr._service.current.values[f"Humidity{self._sensornum}"]
-        if value == 110.0: # if no value was read, the stored value by the driver is 110.0, some offset...
-            return STATE_UNKNOWN
-        return f"{value:.0f}"
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return PERCENTAGE
+    def native_value(self):
+        """Return the humidity in percent, or None when the sensor is absent."""
+        value = self._current_values().get(f"Humidity{self._sensornum}")
+        if value in (None, SensorLimits.humidity_NP, SensorLimits.humidity_OFL):
+            return None
+        return value
 
     @property
     def name(self):
         """Return the name of the sensor."""
-        if not(self._sensornum == "0"): # Sensor 0 has no name in the driver - it's the sensor in the station itself
-            sensorname = self._kldr._service.station_config.values[f"SensorText{self._sensornum}"]
-            sensorname = sensorname.capitalize()
-        else:
-            sensorname = "Indoor"
-        return f"{sensorname} Humidity {self._sensornum}"
+        return f"{self._sensor_name()} Humidity {self._sensornum}"
