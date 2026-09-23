@@ -1,7 +1,7 @@
 {
   "domain": "klimaloggpro",
   "name": "klimaloggpro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "config_flow": true,
   "documentation": "https://github.com/alexisvannier/ha_custom_klimaloggpro",
   "issue_tracker": "https://github.com/alexisvannier/ha_custom_klimaloggpro/issues",

@@ -8,10 +8,12 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.helpers.entity import EntityCategory
 
 from kloggpro.klimalogg import SensorLimits
 
 from .const import DOMAIN
+from .entity import KlimaLoggEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,65 +35,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         sensorlist_temp,
         sensorlist_humid,
     )
-    new_devices = []
+    new_devices = [SignalStrengthSensor(kldr)]
     for sensor in sensorlist_temp:
         new_devices.append(TemperatureSensor(kldr, sensor))
     for sensor in sensorlist_humid:
         new_devices.append(HumiditySensor(kldr, sensor))
-    if new_devices:
-        async_add_entities(new_devices)
+    async_add_entities(new_devices)
 
 
-class SensorBase(SensorEntity):
+class SensorBase(KlimaLoggEntity, SensorEntity):
     """Base representation of KlimaLoggPro sensors."""
 
-    _attr_should_poll = True
     _attr_state_class = SensorStateClass.MEASUREMENT
-
-    def __init__(self, kldr, sensor):
-        """Initialize sensor."""
-        self._kldr = kldr
-        self._sensornum = sensor
-
-    @property
-    def device_info(self):
-        """Return information to link this entity with the correct device."""
-        return {
-            "identifiers": {(DOMAIN, self._kldr.get_transceiver_id())},
-            "manufacturer": "TFA",
-            "name": "KlimaLogg Pro",
-        }
-
-    @property
-    def available(self) -> bool:
-        """Return True if the USB transceiver is open."""
-        return (
-            self._kldr._service is not None
-            and self._kldr.transceiver_is_present()
-        )
-
-    def _current_values(self):
-        if self._kldr._service is None:
-            return {}
-        return self._kldr._service.current.values
-
-    def _battery_status(self):
-        alarm = self._current_values().get("AlarmData")
-        if not alarm:
-            return None
-        if self._sensornum == "0":
-            low = alarm[1] & 0x80
-        else:
-            low = alarm[0] & (1 << (int(self._sensornum) - 1))
-        return "Low" if low else "OK"
-
-    def _sensor_name(self):
-        if self._sensornum == "0":
-            return "Indoor"
-        text = self._kldr._service.station_config.values.get(
-            f"SensorText{self._sensornum}", ""
-        )
-        return text.capitalize() or f"Channel {self._sensornum}"
 
 
 class TemperatureSensor(SensorBase):
@@ -108,7 +63,7 @@ class TemperatureSensor(SensorBase):
 
     @property
     def extra_state_attributes(self):
-        """Return the state attributes of the device."""
+        """Return min/max readings for this channel."""
         values = self._current_values()
         number = self._sensornum
         attr = {}
@@ -120,11 +75,6 @@ class TemperatureSensor(SensorBase):
             attr["max_temp_dt"] = values[f"Temp{number}MaxDT"]
         if f"Temp{number}MinDT" in values:
             attr["min_temp_dt"] = values[f"Temp{number}MinDT"]
-        if "SignalQuality" in values:
-            attr["signal_strength"] = values["SignalQuality"]
-        battery = self._battery_status()
-        if battery is not None:
-            attr["battery_status"] = battery
         return attr
 
     @property
@@ -138,7 +88,7 @@ class TemperatureSensor(SensorBase):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self._sensor_name()} Temperature {self._sensornum}"
+        return f"{self.sensor_name()} Temperature {self._sensornum}"
 
 
 class HumiditySensor(SensorBase):
@@ -155,7 +105,7 @@ class HumiditySensor(SensorBase):
 
     @property
     def extra_state_attributes(self):
-        """Return the state attributes of the device."""
+        """Return min/max readings for this channel."""
         values = self._current_values()
         number = self._sensornum
         attr = {}
@@ -167,11 +117,6 @@ class HumiditySensor(SensorBase):
             attr["max_humidity_dt"] = values[f"Humidity{number}MaxDT"]
         if f"Humidity{number}MinDT" in values:
             attr["min_humidity_dt"] = values[f"Humidity{number}MinDT"]
-        if "SignalQuality" in values:
-            attr["signal_strength"] = values["SignalQuality"]
-        battery = self._battery_status()
-        if battery is not None:
-            attr["battery_status"] = battery
         return attr
 
     @property
@@ -185,4 +130,27 @@ class HumiditySensor(SensorBase):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self._sensor_name()} Humidity {self._sensornum}"
+        return f"{self.sensor_name()} Humidity {self._sensornum}"
+
+
+class SignalStrengthSensor(SensorBase):
+    """Link quality between the console and the USB transceiver."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 0
+
+    @property
+    def unique_id(self):
+        """Return Unique ID string."""
+        return f"{self._kldr.get_transceiver_id()}_signal"
+
+    @property
+    def native_value(self):
+        """Return the link quality reported by the console."""
+        return self._current_values().get("SignalQuality")
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Signal strength"
