@@ -1,4 +1,14 @@
 {
+    "entity": {
+        "button": {
+            "reread_history": {
+                "name": "Relire l'historique"
+            },
+            "clear_history": {
+                "name": "Vider l'historique"
+            }
+        }
+    },
     "options": {
         "step": {
             "init": {

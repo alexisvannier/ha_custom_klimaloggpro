@@ -42,6 +42,15 @@ If the dongle fails to connect, for example after changing the station batteries
 
 The same driver is reopened, so existing sensors stay in place. Pairing can take a minute while the radio thread stops.
 
+## Station history
+
+The console keeps temperature and humidity in its own memory. On the KlimaLogg Pro device page, two configuration buttons use that memory:
+
+- **Reread history** reads records that are missing from Home Assistant, by default the last 7 days or everything newer than the latest stored hour. Hold the station USB button until "USB" stays on the display. Readings are stored as hourly minimum, mean and maximum statistics. The current hour still comes from the live sensors. A progress notification reports the result.
+- **Clear history** deletes Home Assistant history for this station. The console memory is left as it is, so it can be read again.
+
+Signal strength and battery status are not stored in the station history.
+
 ## USB device access
 
 The transceiver identifies as USB vendor `6666`, product `5555`. On a manual Home Assistant installation, grant access to that device:

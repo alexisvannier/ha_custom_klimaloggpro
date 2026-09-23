@@ -1,5 +1,15 @@
 {
   "title": "klimaloggpro",
+  "entity": {
+    "button": {
+      "reread_history": {
+        "name": "Reread history"
+      },
+      "clear_history": {
+        "name": "Clear history"
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {

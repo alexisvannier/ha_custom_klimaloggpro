@@ -55,5 +55,15 @@
             "pairing_restarted": "USB-Dongle erneut geöffnet. USB: {usb}. Gekoppelt: {paired}. Seriennummer: {serial}. Geräte-ID: {device_id}. Letzter Kontakt: {last_contact}. USB-Taste der Station gedrückt halten, bis USB dauerhaft angezeigt wird."
         }
     },
+    "entity": {
+        "button": {
+            "reread_history": {
+                "name": "Historie erneut lesen"
+            },
+            "clear_history": {
+                "name": "Historie leeren"
+            }
+        }
+    },
     "title": "TFA KlimaLogg_pro"
 }

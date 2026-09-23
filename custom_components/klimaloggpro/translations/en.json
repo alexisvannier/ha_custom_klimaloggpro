@@ -55,5 +55,15 @@
             "pairing_restarted": "USB dongle reopened. USB: {usb}. Paired: {paired}. Serial: {serial}. Device ID: {device_id}. Last contact: {last_contact}. Hold the station USB button until USB stays on the display."
         }
     },
+    "entity": {
+        "button": {
+            "reread_history": {
+                "name": "Reread history"
+            },
+            "clear_history": {
+                "name": "Clear history"
+            }
+        }
+    },
     "title": "TFA KlimaLogg_pro"
 }

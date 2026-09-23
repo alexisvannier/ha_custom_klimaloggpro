@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
-PLATFORMS = ["sensor", "binary_sensor"]
+PLATFORMS = ["sensor", "binary_sensor", "button"]
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the klimaloggpro component."""
@@ -32,6 +32,7 @@ def _shutdown_driver_instance(kldr):
     service = getattr(kldr, "_service", None)
     if service is None:
         return
+    kldr.stop_caching_history()
     _LOGGER.info("KlimaLoggDriver will get shut down.")
     if service.child is not None:
         kldr.shutDown()
@@ -42,6 +43,7 @@ def _shutdown_driver_instance(kldr):
 
 def _shutdown_driver(hass: HomeAssistant):
     """Release the USB interface stored on hass. Safe to call more than once."""
+    hass.data.get(DOMAIN, {})["history_cancel"] = True
     kldr = hass.data.get(DOMAIN, {}).get("kldr")
     if kldr is None:
         return
